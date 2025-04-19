@@ -1,4 +1,3 @@
-
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -8,7 +7,18 @@ require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors({ origin: "*" }));
+// ─── CORS + Preflight ────────────────────────────────────────────────────────
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+);
+// Explicitly handle OPTIONS preflight for /analyze
+app.options("/analyze", cors({ origin: "*" }));
+// ──────────────────────────────────────────────────────────────────────────────
+
 app.use(bodyParser.json());
 
 app.get("/", (req, res) => {
@@ -18,26 +28,49 @@ app.get("/", (req, res) => {
 app.post("/analyze", async (req, res) => {
   const { videoId, transcript } = req.body;
   const openaiKey = process.env.OPENAI_API_KEY;
-  if (!openaiKey) return res.status(500).send("Missing OpenAI API key");
+  if (!openaiKey) {
+    return res.status(500).json({ error: "Missing OpenAI API key" });
+  }
 
-  const prompt = `From this YouTube review transcript, what product does the reviewer most clearly recommend? Format: \n\nProduct: <name>\n\n• Bullet 1\n• Bullet 2\n• Bullet 3\n\nTranscript:\n${transcript}`;
+  // Build your prompt (fallback to videoId if no transcript passed)
+  const prompt = `From this YouTube review transcript, what product does the reviewer most clearly recommend? 
+Format: 
+  
+Product: <name>
+
+• Bullet 1
+• Bullet 2
+• Bullet 3
+
+Transcript:
+${transcript || `(no transcript provided for videoId ${videoId})`}`;
 
   try {
-    const response = await axios.post("https://api.openai.com/v1/chat/completions", {
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }]
-    }, {
-      headers: {
-        "Authorization": `Bearer ${openaiKey}`,
-        "Content-Type": "application/json"
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: prompt }]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${openaiKey}`,
+          "Content-Type": "application/json"
+        }
       }
-    });
+    );
 
-    const content = response.data.choices[0].message.content || "";
-    res.json({ result: content });
-  } catch (error) {
-    console.error("OpenAI error:", error.response?.data || error.message);
-    res.status(500).json({ error: "OpenAI request failed" });
+    const content = response.data.choices?.[0]?.message?.content || "";
+    // You can parse content into JSON here if you want structured output
+    return res.json({ result: content });
+  } catch (err) {
+    // Log full error for debugging
+    console.error("Analyze route error:", err.response?.data || err.message);
+    // Return real error message (and optionally stack)
+    return res.status(500).json({
+      error: err.response?.data?.error?.message || err.message,
+      stack: err.stack
+    });
   }
 });
 
