@@ -1,55 +1,34 @@
-import express from "express";
-import cors from "cors";
-import fetch from "node-fetch";
-import { Configuration, OpenAIApi } from "openai";
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import OpenAI from 'openai';
 
 const app = express();
-const port = process.env.PORT || 10000;
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
-app.post("/analyze", async (req, res) => {
-  const { videoUrl, type } = req.body;
-
-  let prompt;
-  switch (type) {
-    case "magic":
-      prompt = `Please summarize the content of this YouTube page in under 300 words. Here is the link: ${videoUrl}`;
-      break;
-    case "review":
-      prompt = `Analyze this YouTube video and provide the final product the reviewer recommends, along with 2–3 concise reasons. Video: ${videoUrl}`;
-      break;
-    case "ask":
-      prompt = `Here is the video link: ${videoUrl}\n\n(Ask your question below)`;
-      break;
-    default:
-      return res.status(400).json({ error: "Invalid type" });
-  }
+app.post('/analyze', async (req, res) => {
+  const { prompt } = req.body;
 
   try {
-    const completion = await openai.createChatCompletion({
+    const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
     });
 
-    const answer = completion.data.choices[0].message.content;
-    res.json({ result: answer });
-  } catch (err) {
-    console.error("[Smart-Rec Error]", err.message || err);
-    res.status(500).json({ error: "Failed to generate recommendation" });
+    const reply = completion.choices?.[0]?.message?.content?.trim();
+    res.json({ result: reply || "No result." });
+  } catch (error) {
+    console.error('[Smart-Rec Error]', error);
+    res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 });
 
-app.get("/", (req, res) => {
-  res.send("Smart-Rec backend is running.");
-});
-
-app.listen(port, () => {
-  console.log(`✅ Smart-Rec backend running on port ${port}`);
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`✅ Smart-Rec backend v3.1 is live on port ${PORT}`);
 });
