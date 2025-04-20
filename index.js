@@ -16,23 +16,23 @@ const openai = new OpenAI({
 });
 
 app.post('/analyze', async (req, res) => {
-  const { url = "", title = "", transcript = "" } = req.body;
+  const { url = "", title = "" } = req.body;
 
   try {
     const prompt = `
-You are a professional product analyst. A reviewer just published a YouTube video titled: "${title}" located at ${url}.
+You are an expert product review summarizer.
 
-Here is the transcript of the video:
-------------------
-${transcript}
-------------------
+A YouTube video titled: "${title}" located at ${url} is a product review or comparison video.
 
-Based ONLY on this transcript, extract the final product recommendation made by the reviewer. Include:
-- The exact product name
-- 2–3 key features praised
-- A short summary of why the reviewer recommends it
+Your job is to identify the **final product recommendation** made by the reviewer — the product they clearly suggest viewers buy.
 
-DO NOT guess or invent a product. If the recommendation is unclear, say: "⚠️ No clear recommendation found."
+Return your answer in this format:
+
+**Product Name**: [name of the product]
+**Why it’s recommended**: [concise summary of key benefits mentioned by the reviewer]
+
+If the video does not contain a clear recommendation, respond with:
+⚠️ No clear recommendation found.
 `;
 
     const response = await openai.chat.completions.create({
@@ -45,14 +45,13 @@ DO NOT guess or invent a product. If the recommendation is unclear, say: "⚠️
     return res.json({ recommendation });
 
   } catch (error) {
-    console.error("Smart-Rec GPT-4 backend error:", error?.response?.data || error.message);
-    const fallbackMessage = (error?.response?.data?.error?.message || "Something went wrong.");
+    console.error("Smart-Rec v3.0 GPT error:", error?.response?.data || error.message);
     return res.status(200).json({
-      recommendation: `⚠️ Smart-Rec GPT-4 failed: ${fallbackMessage}`
+      recommendation: "⚠️ Error: Could not get a recommendation."
     });
   }
 });
 
 app.listen(PORT, () => {
-  console.log("✅ Smart-Rec GPT-4 backend is live on port " + PORT);
+  console.log("✅ Smart-Rec v3.0 backend is live on port " + PORT);
 });
