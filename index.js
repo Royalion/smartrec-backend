@@ -1,52 +1,62 @@
-// index.js (complete backend)
 import express from "express";
 import cors from "cors";
-import bodyParser from "body-parser";
+import fetch from "node-fetch";
 import { OpenAI } from "openai";
 
 const app = express();
-const port = process.env.PORT || 10000;
+app.use(express.json());
 
-app.use(cors());
-app.use(bodyParser.json());
+// ✅ CORS config: allow Chrome Extension + localhost
+app.use(
+  cors({
+    origin: [
+      "chrome-extension://<YOUR_EXTENSION_ID>", // ← REPLACE THIS with your actual extension ID
+      "http://localhost:3000"
+    ],
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"]
+  })
+);
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// Define the prompt templates
-const prompts = {
-  magic: (url) => `Please summarize the content of this YouTube page in under 300 words. Here is the link: ${url}`,
-  ask:   (url) => `Use this YouTube link for reference: ${url}. Wait for the user to ask a question before proceeding.`,
-  review: (url) => `Analyze the final product recommendation made by the YouTube reviewer in this video. Provide the product name and 1-3 key reasons they recommend it. Here is the video link: ${url}`,
-};
-
+// ✅ Main endpoint to analyze a YouTube review link
 app.post("/analyze", async (req, res) => {
+  const { url, prompt } = req.body;
+
+  // Error if something's missing
+  if (!url || !prompt) {
+    return res.status(400).json({
+      error: "Missing 'url' or 'prompt' in request body",
+    });
+  }
+
   try {
-    const { url, mode } = req.body;
-
-    if (!url || !mode || !prompts[mode]) {
-      return res.status(400).json({ error: "Missing or invalid parameters." });
-    }
-
-    const prompt = prompts[mode](url);
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
           role: "user",
-          content: prompt,
+          content: `${prompt}\n\nHere is the link: ${url}`,
         },
       ],
     });
 
-    const result = completion.choices[0]?.message?.content || "No recommendation found.";
+    const result = completion.choices[0]?.message?.content || "No result.";
     res.json({ result });
-  } catch (error) {
-    console.error("[Smart-Rec Error]", error);
-    res.status(500).json({ error: "Failed to analyze the page." });
+  } catch (err) {
+    console.error("[Smart-Rec Error]", err);
+    res.status(500).json({
+      error: "Failed to process the request",
+      message: err?.message || "Unknown error",
+    });
   }
 });
 
-app.listen(port, () => {
-  console.log(`\u2705 Smart-Rec backend is live on port ${port}`);
-});
+// ✅ Server start
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () =>
+  console.log(`✅ Smart-Rec backend is live on port ${PORT}`)
+);
