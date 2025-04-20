@@ -6,23 +6,28 @@ import { OpenAI } from "openai";
 const app = express();
 app.use(express.json());
 
-// ✅ CORS config: allow Chrome Extension + localhost
+// ✅ Allow all Chrome Extensions and localhost (public-safe default)
 app.use(
   cors({
-    origin: [
-      "chrome-extension://<YOUR_EXTENSION_ID>", // ← REPLACE THIS with your actual extension ID
-      "http://localhost:3000"
-    ],
+    origin: (origin, callback) => {
+      if (
+        origin?.startsWith("chrome-extension://") ||
+        origin === "http://localhost:3000" ||
+        !origin // some browser requests might be null
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS not allowed from this origin"));
+      }
+    },
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type"]
   })
 );
 
-// ✅ Main endpoint to analyze a YouTube review link
 app.post("/analyze", async (req, res) => {
   const { url, prompt } = req.body;
 
-  // Error if something's missing
   if (!url || !prompt) {
     return res.status(400).json({
       error: "Missing 'url' or 'prompt' in request body",
@@ -55,7 +60,6 @@ app.post("/analyze", async (req, res) => {
   }
 });
 
-// ✅ Server start
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () =>
   console.log(`✅ Smart-Rec backend is live on port ${PORT}`)
