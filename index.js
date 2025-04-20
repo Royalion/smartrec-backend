@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 
 dotenv.config();
 const app = express();
@@ -11,10 +11,9 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(bodyParser.json());
 
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
-const openai = new OpenAIApi(configuration);
 
 app.post('/analyze', async (req, res) => {
   const videoUrl = req.body.url || "";
@@ -22,13 +21,13 @@ app.post('/analyze', async (req, res) => {
   try {
     const prompt = `Extract a clear, concise product recommendation based on the review video at this URL: ${videoUrl}`;
 
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
     });
 
-    const recommendation = response.data.choices[0].message.content.trim();
+    const recommendation = response.choices[0].message.content.trim();
 
     return res.json({ recommendation });
   } catch (error) {
@@ -41,5 +40,5 @@ app.post('/analyze', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Smart-Rec backend v2.1 running on port ${PORT}`);
+  console.log(`✅ Smart-Rec backend v2.1 is live on port ${PORT}`);
 });
