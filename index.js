@@ -1,9 +1,10 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const { Configuration, OpenAIApi } = require('openai');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import dotenv from 'dotenv';
+import { Configuration, OpenAIApi } from 'openai';
 
+dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
@@ -32,7 +33,6 @@ app.post('/analyze', async (req, res) => {
     return res.json({ recommendation });
   } catch (error) {
     console.error("Smart-Rec backend error:", error?.response?.data || error.message);
-
     const fallbackMessage = (error?.response?.data?.error?.message || "Something went wrong.");
     return res.status(200).json({
       recommendation: `⚠️ Smart-Rec is temporarily overloaded or encountered an issue: ${fallbackMessage}`
