@@ -8,7 +8,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type"]
+}));
+
 app.use(bodyParser.json());
 
 const openai = new OpenAI({
@@ -28,8 +33,8 @@ Your job is to identify the **final product recommendation** made by the reviewe
 
 Return your answer in this format:
 
-**Product Name**: [name of the product]
-**Why it’s recommended**: [concise summary of key benefits mentioned by the reviewer]
+**Product Name**: [name of the product]  
+**Why it’s recommended**: [1–2 sentence summary of the key strengths mentioned in the review]
 
 If the video does not contain a clear recommendation, respond with:
 ⚠️ No clear recommendation found.
@@ -45,7 +50,7 @@ If the video does not contain a clear recommendation, respond with:
     return res.json({ recommendation });
 
   } catch (error) {
-    console.error("Smart-Rec v3.0 GPT error:", error?.response?.data || error.message);
+    console.error("Smart-Rec GPT error:", error?.response?.data || error.message);
     return res.status(200).json({
       recommendation: "⚠️ Error: Could not get a recommendation."
     });
