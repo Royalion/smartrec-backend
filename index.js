@@ -16,30 +16,43 @@ const openai = new OpenAI({
 });
 
 app.post('/analyze', async (req, res) => {
-  const videoUrl = req.body.url || "";
-  const videoTitle = req.body.title || "";
+  const { url = "", title = "", transcript = "" } = req.body;
 
   try {
-    const prompt = `The following is a YouTube review video titled: "${videoTitle}". The video is located at: ${videoUrl}. Based on this, extract a clear, concise, and direct product recommendation including product name, key features praised, and why the reviewer recommends it.`;
+    const prompt = `
+You are a professional product analyst. A reviewer just published a YouTube video titled: "${title}" located at ${url}.
+
+Here is the transcript of the video:
+------------------
+${transcript}
+------------------
+
+Based ONLY on this transcript, extract the final product recommendation made by the reviewer. Include:
+- The exact product name
+- 2–3 key features praised
+- A short summary of why the reviewer recommends it
+
+DO NOT guess or invent a product. If the recommendation is unclear, say: "⚠️ No clear recommendation found."
+`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4-turbo",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
+      temperature: 0.3
     });
 
     const recommendation = response.choices[0].message.content.trim();
-
     return res.json({ recommendation });
+
   } catch (error) {
-    console.error("Smart-Rec backend error:", error?.response?.data || error.message);
+    console.error("Smart-Rec GPT-4 backend error:", error?.response?.data || error.message);
     const fallbackMessage = (error?.response?.data?.error?.message || "Something went wrong.");
     return res.status(200).json({
-      recommendation: `⚠️ Smart-Rec is temporarily overloaded or encountered an issue: ${fallbackMessage}`
+      recommendation: `⚠️ Smart-Rec GPT-4 failed: ${fallbackMessage}`
     });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Smart-Rec backend v2.1.5 is live on port ${PORT}`);
+  console.log("✅ Smart-Rec GPT-4 backend is live on port " + PORT);
 });
