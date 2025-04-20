@@ -1,79 +1,45 @@
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const axios = require("axios");
-require("dotenv").config();
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const { Configuration, OpenAIApi } = require('openai');
+require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
-// ─── CORS + Preflight ────────────────────────────────────────────────────────
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-  })
-);
-// Explicitly handle OPTIONS preflight for /analyze
-app.options("/analyze", cors({ origin: "*" }));
-// ──────────────────────────────────────────────────────────────────────────────
-
+app.use(cors());
 app.use(bodyParser.json());
 
-app.get("/", (req, res) => {
-  res.send("Smart-Rec backend is running (CORS-enabled).");
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
 });
+const openai = new OpenAIApi(configuration);
 
-app.post("/analyze", async (req, res) => {
-  const { videoId, transcript } = req.body;
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (!openaiKey) {
-    return res.status(500).json({ error: "Missing OpenAI API key" });
-  }
-
-  // Build your prompt (fallback to videoId if no transcript passed)
-  const prompt = `From this YouTube review transcript, what product does the reviewer most clearly recommend? 
-Format: 
-  
-Product: <name>
-
-• Bullet 1
-• Bullet 2
-• Bullet 3
-
-Transcript:
-${transcript || `(no transcript provided for videoId ${videoId})`}`;
+app.post('/analyze', async (req, res) => {
+  const videoUrl = req.body.url || "";
 
   try {
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${openaiKey}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
+    const prompt = `Extract a clear, concise product recommendation based on the review video at this URL: ${videoUrl}`;
 
-    const content = response.data.choices?.[0]?.message?.content || "";
-    // You can parse content into JSON here if you want structured output
-    return res.json({ result: content });
-  } catch (err) {
-    // Log full error for debugging
-    console.error("Analyze route error:", err.response?.data || err.message);
-    // Return real error message (and optionally stack)
-    return res.status(500).json({
-      error: err.response?.data?.error?.message || err.message,
-      stack: err.stack
+    const response = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+    });
+
+    const recommendation = response.data.choices[0].message.content.trim();
+
+    return res.json({ recommendation });
+  } catch (error) {
+    console.error("Smart-Rec backend error:", error?.response?.data || error.message);
+
+    const fallbackMessage = (error?.response?.data?.error?.message || "Something went wrong.");
+    return res.status(200).json({
+      recommendation: `⚠️ Smart-Rec is temporarily overloaded or encountered an issue: ${fallbackMessage}`
     });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Smart-Rec backend running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`Smart-Rec backend v2.1 running on port ${PORT}`);
 });
