@@ -17,9 +17,10 @@ const openai = new OpenAI({
 
 app.post('/analyze', async (req, res) => {
   const videoUrl = req.body.url || "";
+  const videoTitle = req.body.title || "";
 
   try {
-    const prompt = `Extract a clear, concise product recommendation based on the review video at this URL: ${videoUrl}`;
+    const prompt = `The following is a YouTube review video titled: "${videoTitle}". The video is located at: ${videoUrl}. Based on this, extract a clear, concise, and direct product recommendation including product name, key features praised, and why the reviewer recommends it.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -40,5 +41,5 @@ app.post('/analyze', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Smart-Rec backend v2.1 is live on port ${PORT}`);
+  console.log(`✅ Smart-Rec backend v2.1.5 is live on port ${PORT}`);
 });
